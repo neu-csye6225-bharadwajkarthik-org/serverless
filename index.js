@@ -4,12 +4,12 @@ const mailGun = require('nodemailer-mailgun-transport');
 const axios = require('axios');
 const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
 const {v4: uuidv4} = require('uuid'); 
-const { Storage } = require('@google-cloud/storage');
-const secretName = "webapp/email"; 
+const { Storage } = require('@google-cloud/storage'); 
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const secretName = process.env['EMAIL_SECRET_NAME']; 
 const region = process.env['REGION_AWS']
 // AWS Secrets Manager Client
 const client = new SecretsManagerClient({ region: region }); 
@@ -126,7 +126,7 @@ exports.handler = async (event) => {
             
             // Send email with attachment if download succeeds
             const mailOptions = {
-                from: 'noreply@cloudcsye6225.me',
+                from: `noreply@${domain}`,
                 to: email,
                 subject: 'Submission status',
                 text: `Submission successfully downloaded and stored in gcs bucket with name : ${GCS_BUCKET_NAME}, at path : ${submissionPath}.`,
@@ -181,7 +181,7 @@ exports.handler = async (event) => {
             };
             if(error.code === "UNSUPPORTED_PROTOCOL"){ //error.code === 'ERR_BAD_REQUEST'
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to unsupported submission_url protocol (must be http or https)',
@@ -189,7 +189,7 @@ exports.handler = async (event) => {
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful due to unsupported submission_url protocol (must be http or https), and failure mail sent to ${email}`
             }else if(error.code === 400){
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: `Submission download was unsuccessful as ${error.msg}`,
@@ -197,7 +197,7 @@ exports.handler = async (event) => {
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful as ${error.msg}, and failure mail sent to ${email}`
             }else if(error.code === 'UNSUPPORTED_FILE_TYPE'){
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful as file present in submission_url is not a ZIP file',
@@ -205,7 +205,7 @@ exports.handler = async (event) => {
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful as file present in submission_url is not a ZIP file, and failure mail sent to ${email}`
             }else if(error.code === 'ENOTFOUND' || error.code === 'ERR_BAD_REQUEST'){
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful as no resource found in given submission_url',
@@ -213,7 +213,7 @@ exports.handler = async (event) => {
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful as no resource found in given submission_url, and failure mail sent to ${email}`
             }else if(error.code === 'ECONNREFUSED'){
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to malformed submission_url format (invalid URL structure)',
@@ -221,7 +221,7 @@ exports.handler = async (event) => {
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful due to malformed submission_url format (invalid link structure), and failure mail sent to ${email}`
             }else if(error.code === 'BUCKET_UPLOAD_ERROR'){
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: `Submission download was successful, but upload to storage failed due to ${error.message}`,
@@ -229,7 +229,7 @@ exports.handler = async (event) => {
                 dynamoDBParams.Item.body.S = `Submission download was successful, but upload to storage failed due to ${error.message}, and failure mail sent to ${email}`
             }else if(error.code === 'ETIMEDOUT'){
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to connection timeout (file too large)',
@@ -238,7 +238,7 @@ exports.handler = async (event) => {
             }else{
                 console.log('Error : ', error)
                 mailOptions = {
-                    from: 'noreply@cloudcsye6225.me',
+                    from: `noreply@${domain}`,
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to unexpected problems',
