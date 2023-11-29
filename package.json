@@ -1,0 +1,26 @@
+{
+  "name": "serverless",
+  "version": "1.0.0",
+  "description": "<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->\r <a name=\"readme-top\"></a>",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "fs": "^0.0.1-security",
+    "nodemailer-mailgun-transport": "^2.1.5",
+    "nodemailer": "^6.9.7",
+    "path": "^0.12.7",
+    "os": "^0.1.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@neu.github.com:neu-csye6225-bharadwajkarthik-org/serverless.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
