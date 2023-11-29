@@ -62,7 +62,7 @@ exports.handler = async (event) => {
         
         // Retrieve secret
         const secretValue = await getSecret();
-        // Use the secret in your code
+        // Use the secret
         const secretObject = JSON.parse(secretValue || "");
         const domain = secretObject['domain'];
         const apiKey = secretObject['API_KEY'];
@@ -124,12 +124,11 @@ exports.handler = async (event) => {
                     num_attempts = files.length + 1;
                     console.log(`Number of objects in ${submissionFolderPath}:`, num_attempts);
                 
-                    // Rest of your code using the num_attempts value
+                    
                     submissionPath = `${submissionFolderPath}/${submissionId}_v${num_attempts}`;
-                    // ... (rest of your code)
                 } catch (err) {
                     console.error('Error retrieving files:', err);
-                    // Handle error when retrieving files
+                    
                 }
 
                 submissionPath = `${submissionFolderPath}/attempt-${num_attempts}_id_${submissionId}`
@@ -162,14 +161,13 @@ exports.handler = async (event) => {
             console.log("Email sent!");
              // Prepare the item to be inserted into DynamoDB
             const dynamoDBParams = {
-                TableName: DYNAMO_TABLE_NAME, // Replace with your DynamoDB table name
+                TableName: DYNAMO_TABLE_NAME, 
                 Item: {
                     id: { S: uuidv4() }, // Define a unique identifier for each record
                     email: { S: email }, // Store the email address
                     status: { S: 'Success'}, // Store success/failure status
                     body: {S: `Submission successfully downloaded and stored in gcs bucket with name : ${GCS_BUCKET_NAME}, at path : ${submissionPath}, and status mailed to ${email}`},
                     timestamp: { S: `${new Date().toISOString()}` }, // Store a timestamp for sorting or reference
-                    // Add more attributes or modify as needed based on your requirements
                 },
             };
 
@@ -195,14 +193,14 @@ exports.handler = async (event) => {
         }catch(error){
             let mailOptions;
             const dynamoDBParams = {
-                TableName: DYNAMO_TABLE_NAME, // Replace with your DynamoDB table name
+                TableName: DYNAMO_TABLE_NAME, 
                 Item: {
                     id: { S: uuidv4() }, // Define a unique identifier for each record
                     email: { S: email }, // Store the email address
                     status: { S: 'Failure'}, // Store success/failure status
                     body: {S: ''},
                     timestamp: { S: `${new Date().toISOString()}` }, // Store a timestamp for sorting or reference
-                    // Add more attributes or modify as needed based on your requirements
+                    
                 },
             };
             if(error.code === "UNSUPPORTED_PROTOCOL"){ //error.code === 'ERR_BAD_REQUEST'
