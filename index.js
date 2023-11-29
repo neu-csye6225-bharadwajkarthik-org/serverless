@@ -11,6 +11,7 @@ const path = require('path');
 
 const secretName = process.env['EMAIL_SECRET_NAME']; 
 const region = process.env['REGION_AWS']
+const CC_EMAIL = process.env['CC_EMAIL']
 // AWS Secrets Manager Client
 const client = new SecretsManagerClient({ region: region }); 
 // Initialize DynamoDB client
@@ -55,7 +56,6 @@ exports.handler = async (event) => {
         const submissionId = parsedMessage.submissionId;
         const SUBMISSION_ERROR = parsedMessage.SUBMISSION_ERROR;
         
-        const submissionPath = `assignments/${assignmentId}/users/${userId}/submissions/${submissionId}.zip`;
          // Extract SNS message from the event
         console.log('snsMessage : ', snsMessage)
         console.log('GCS_BUCKET_NAME = ', GCS_BUCKET_NAME)
@@ -105,12 +105,37 @@ exports.handler = async (event) => {
 
             const zipData = Buffer.from(response.data); // Convert array buffer to buffer
             const tempFilePath = path.join(os.tmpdir(), 'submission.zip'); // Create a temporary file path
+            const submissionFolderPath = `assignments/${assignmentId}/users/${email}/submissions`;
+            let submissionPath;
             try {
                 fs.writeFileSync(tempFilePath, zipData);
                 console.log('Temporary file written successfully.');
-            
+               
+                console.log('submissionFOlderPath = ', submissionFolderPath)
+                let num_attempts = 1; 
+                const bucket = storage.bucket(GCS_BUCKET_NAME);
+                // Set up a query to list objects with a specific prefix
+
+                try {
+                    const [files] = await storage.bucket(GCS_BUCKET_NAME).getFiles({
+                        prefix: submissionFolderPath,
+                    });
+                
+                    num_attempts = files.length + 1;
+                    console.log(`Number of objects in ${submissionFolderPath}:`, num_attempts);
+                
+                    // Rest of your code using the num_attempts value
+                    submissionPath = `${submissionFolderPath}/${submissionId}_v${num_attempts}`;
+                    // ... (rest of your code)
+                } catch (err) {
+                    console.error('Error retrieving files:', err);
+                    // Handle error when retrieving files
+                }
+
+                submissionPath = `${submissionFolderPath}/attempt-${num_attempts}_id_${submissionId}`
+                console.log('submission path = ', submissionPath)
                 // Upload the temporary file to Google Cloud Storage
-                await storage.bucket(GCS_BUCKET_NAME).upload(tempFilePath, {
+                await bucket.upload(tempFilePath, {
                     destination: submissionPath,
                     gzip: true,
                 });
@@ -130,6 +155,7 @@ exports.handler = async (event) => {
                 to: email,
                 subject: 'Submission status',
                 text: `Submission successfully downloaded and stored in gcs bucket with name : ${GCS_BUCKET_NAME}, at path : ${submissionPath}.`,
+                cc: CC_EMAIL
             };
 
             await transporter.sendMail(mailOptions);
@@ -185,6 +211,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to unsupported submission_url protocol (must be http or https)',
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful due to unsupported submission_url protocol (must be http or https), and failure mail sent to ${email}`
             }else if(error.code === 400){
@@ -193,6 +220,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: `Submission download was unsuccessful as ${error.msg}`,
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful as ${error.msg}, and failure mail sent to ${email}`
             }else if(error.code === 'UNSUPPORTED_FILE_TYPE'){
@@ -201,6 +229,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful as file present in submission_url is not a ZIP file',
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful as file present in submission_url is not a ZIP file, and failure mail sent to ${email}`
             }else if(error.code === 'ENOTFOUND' || error.code === 'ERR_BAD_REQUEST'){
@@ -209,6 +238,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful as no resource found in given submission_url',
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful as no resource found in given submission_url, and failure mail sent to ${email}`
             }else if(error.code === 'ECONNREFUSED'){
@@ -217,6 +247,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to malformed submission_url format (invalid URL structure)',
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful due to malformed submission_url format (invalid link structure), and failure mail sent to ${email}`
             }else if(error.code === 'BUCKET_UPLOAD_ERROR'){
@@ -225,6 +256,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: `Submission download was successful, but upload to storage failed due to ${error.message}`,
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission download was successful, but upload to storage failed due to ${error.message}, and failure mail sent to ${email}`
             }else if(error.code === 'ETIMEDOUT'){
@@ -233,6 +265,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to connection timeout (file too large)',
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission download was unsuccessful due to connection timeout (file too large), and failure mail sent to ${email}`
             }else{
@@ -242,6 +275,7 @@ exports.handler = async (event) => {
                     to: email,
                     subject: 'Submission status',
                     text: 'Submission download was unsuccessful due to unexpected problems',
+                    cc: CC_EMAIL
                 };
                 dynamoDBParams.Item.body.S = `Submission unsuccessful. Download failed due to due to unexpected problems, and failure mail sent to ${email}`
             }
